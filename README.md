@@ -28,6 +28,17 @@ For the first useful multi-seed pilot on a GPU:
 python -m logic_sheaves pilot --device cuda --output runs\pilot
 ```
 
+For the complete width-128 architecture-depth sweep with training dynamics,
+activation patching, and plots A–J:
+
+```powershell
+python -m logic_sheaves depth-sweep --device cuda --output-root runs\depth_sweeps
+```
+
+Every invocation creates a new timestamped subdirectory and never overwrites an
+earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
+controls, patching intervention, output tables, and figure definitions.
+
 Override the training budget or seeds without editing code:
 
 ```powershell
@@ -64,6 +75,9 @@ src/logic_sheaves/
   training.py    reproducible training and evaluation
   metrics.py     probes, CKA, constrained transports, and holonomy
   experiment.py  low-vs-high-diversity experiment runner
+  depth_sweep.py  1–6 layer sweep and checkpoint trajectory analysis
+  patching.py     controlled counterfactual activation patching
+  plotting.py     automatic A–J research figure suite
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

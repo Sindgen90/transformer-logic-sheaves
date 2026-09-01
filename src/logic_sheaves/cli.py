@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
 
 
@@ -20,11 +21,49 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
         command.add_argument("--steps", type=int, default=None)
         command.add_argument("--seeds", type=int, nargs="+", default=None)
+    depth_sweep = subparsers.add_parser(
+        "depth-sweep",
+        help="Sweep 1-6 Transformer layers with dynamics, patching, and complete plots.",
+    )
+    depth_sweep.add_argument("--output-root", type=Path, default=Path("runs") / "depth_sweeps")
+    depth_sweep.add_argument("--run-name", default=None)
+    depth_sweep.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    depth_sweep.add_argument("--layers", type=int, nargs="+", choices=range(1, 7), default=None)
+    depth_sweep.add_argument("--steps", type=int, default=3_000)
+    depth_sweep.add_argument("--seeds", type=int, nargs="+", default=None)
+    depth_sweep.add_argument("--dynamics-every", type=int, default=500)
+    depth_sweep.add_argument("--validation-size", type=int, default=1_000)
+    depth_sweep.add_argument("--test-size", type=int, default=1_000)
+    depth_sweep.add_argument("--cycle-count", type=int, default=512)
+    depth_sweep.add_argument("--dynamics-cycle-count", type=int, default=256)
+    depth_sweep.add_argument("--patch-count", type=int, default=256)
+    depth_sweep.add_argument("--dynamics-patch-count", type=int, default=64)
+    depth_sweep.add_argument("--dynamics-analysis-size", type=int, default=256)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "depth-sweep":
+        config = default_depth_sweep_config(
+            args.output_root,
+            run_name=args.run_name,
+            layers=tuple(args.layers or range(1, 7)),
+            seeds=tuple(args.seeds or (0, 1, 2)),
+            steps=args.steps,
+            dynamics_every=args.dynamics_every,
+            device=args.device,
+            validation_size=args.validation_size,
+            test_size=args.test_size,
+            cycle_count=args.cycle_count,
+            dynamics_cycle_count=args.dynamics_cycle_count,
+            patch_count=args.patch_count,
+            dynamics_patch_count=args.dynamics_patch_count,
+            dynamics_analysis_size=args.dynamics_analysis_size,
+        )
+        run_directory = run_depth_sweep(config)
+        print(f"Depth sweep artifacts: {run_directory.resolve()}")
+        return
     default_seeds = (0,) if args.command == "smoke" else (0, 1, 2)
     seeds = tuple(args.seeds) if args.seeds else default_seeds
     if args.command == "smoke":

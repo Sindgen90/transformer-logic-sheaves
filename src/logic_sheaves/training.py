@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import random
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -80,6 +80,8 @@ def train_model(
     model_config: ModelConfig,
     train_config: TrainConfig,
     checkpoint_path: Path | None = None,
+    on_evaluation: Callable[[TinyLogicTransformer, int, dict[str, float | int]], None]
+    | None = None,
 ) -> tuple[TinyLogicTransformer, list[dict[str, float | int]]]:
     seed_everything(train_config.seed)
     device = resolve_device(train_config.device)
@@ -127,15 +129,16 @@ def train_model(
                 device=device,
             )
             interval = 1 if step == 1 else min(train_config.eval_every, step)
-            history.append(
-                {
-                    "step": step,
-                    "train_loss": running_loss / interval,
-                    "validation_loss": validation["loss"],
-                    "validation_accuracy": validation["accuracy"],
-                }
-            )
+            record: dict[str, float | int] = {
+                "step": step,
+                "train_loss": running_loss / interval,
+                "validation_loss": validation["loss"],
+                "validation_accuracy": validation["accuracy"],
+            }
+            history.append(record)
             running_loss = 0.0
+            if on_evaluation is not None:
+                on_evaluation(model, step, record)
             model.train()
 
     if checkpoint_path is not None:

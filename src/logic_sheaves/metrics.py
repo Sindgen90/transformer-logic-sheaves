@@ -116,7 +116,7 @@ def local_probe_scores(
 ) -> dict[str, float]:
     calibration_states = local_operator_representations(model, calibration, device=device)
     test_states = local_operator_representations(model, test, device=device)
-    scores: dict[str, float] = {}
+    scores: dict[str, float] = {f"local_probe_{op.lower()}": float("nan") for op in OPS}
     balanced_scores: list[float] = []
     for op in sorted(calibration_states.keys() & test_states.keys()):
         train_x, train_y = calibration_states[op]
@@ -126,7 +126,9 @@ def local_probe_scores(
         result = ridge_probe(train_x, train_y, test_x, test_y)
         scores[f"local_probe_{op.lower()}"] = result["test_balanced_accuracy"]
         balanced_scores.append(result["test_balanced_accuracy"])
-    scores["local_probe_mean"] = float(np.mean(balanced_scores))
+    scores["local_probe_mean"] = (
+        float(np.mean(balanced_scores)) if balanced_scores else float("nan")
+    )
     return scores
 
 
