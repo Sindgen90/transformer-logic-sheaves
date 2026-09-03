@@ -1,0 +1,20 @@
+{
+  "status": "complete",
+  "models": 18,
+  "diagram_families": 11,
+  "rewrite_labels": 27,
+  "plots": [
+    "plots\\A_training_dynamics.png",
+    "plots\\B_behavior.png",
+    "plots\\C_depth_generalization.png",
+    "plots\\D_operator_accuracy.png",
+    "plots\\E_family_holonomy.png",
+    "plots\\F_shape_complexity.png",
+    "plots\\G_path_agreement.png",
+    "plots\\H_transport_vs_holonomy.png",
+    "plots\\I_correlations.png",
+    "plots\\J_rewrite_transport.png",
+    "plots\\K_diagram_atlas.png"
+  ],
+  "run_directory": "C:\\Users\\nikso\\Documents\\ChatGPT\\Transformer_Logic_Sheaves\\runs\\equivalence_complexes\\equivalence_complex_20260902_211352_321084Z"
+}

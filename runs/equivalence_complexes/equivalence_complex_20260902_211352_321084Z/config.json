@@ -1,0 +1,37 @@
+{
+  "output_root": "runs\\equivalence_complexes",
+  "run_name": null,
+  "layers": [
+    2,
+    4,
+    6
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "conditions": {
+    "low_diversity": 512,
+    "higher_diversity": 12000
+  },
+  "width": 128,
+  "n_heads": 4,
+  "d_ff": 256,
+  "train_depth": 3,
+  "ood_depths": [
+    4,
+    5
+  ],
+  "validation_size": 1000,
+  "test_size": 1000,
+  "steps": 2000,
+  "batch_size": 256,
+  "learning_rate": 0.0003,
+  "weight_decay": 0.01,
+  "eval_every": 250,
+  "calibration_pairs_per_rewrite": 192,
+  "diagrams_per_family": 96,
+  "diagram_operand_depth": 2,
+  "device": "cuda"
+}

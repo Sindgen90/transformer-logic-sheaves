@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .complex_experiment import default_complex_config, run_complex_experiment
 from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
 
@@ -39,11 +40,43 @@ def build_parser() -> argparse.ArgumentParser:
     depth_sweep.add_argument("--patch-count", type=int, default=256)
     depth_sweep.add_argument("--dynamics-patch-count", type=int, default=64)
     depth_sweep.add_argument("--dynamics-analysis-size", type=int, default=256)
+    complex_sweep = subparsers.add_parser(
+        "complex-sweep",
+        help="Run the symbolic, higher-arity, multi-diagram equivalence experiment.",
+    )
+    complex_sweep.add_argument(
+        "--output-root", type=Path, default=Path("runs") / "equivalence_complexes"
+    )
+    complex_sweep.add_argument("--run-name", default=None)
+    complex_sweep.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    complex_sweep.add_argument("--layers", type=int, nargs="+", choices=range(1, 9), default=None)
+    complex_sweep.add_argument("--steps", type=int, default=2_000)
+    complex_sweep.add_argument("--seeds", type=int, nargs="+", default=None)
+    complex_sweep.add_argument("--validation-size", type=int, default=1_000)
+    complex_sweep.add_argument("--test-size", type=int, default=1_000)
+    complex_sweep.add_argument("--calibration-pairs", type=int, default=192)
+    complex_sweep.add_argument("--diagrams-per-family", type=int, default=96)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "complex-sweep":
+        config = default_complex_config(
+            args.output_root,
+            run_name=args.run_name,
+            layers=tuple(args.layers or (2, 4, 6)),
+            seeds=tuple(args.seeds or (0, 1, 2)),
+            steps=args.steps,
+            device=args.device,
+            validation_size=args.validation_size,
+            test_size=args.test_size,
+            calibration_pairs_per_rewrite=args.calibration_pairs,
+            diagrams_per_family=args.diagrams_per_family,
+        )
+        run_directory = run_complex_experiment(config)
+        print(f"Equivalence-complex artifacts: {run_directory.resolve()}")
+        return
     if args.command == "depth-sweep":
         config = default_depth_sweep_config(
             args.output_root,

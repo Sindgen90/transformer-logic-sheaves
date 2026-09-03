@@ -35,6 +35,21 @@ activation patching, and plots A–J:
 python -m logic_sheaves depth-sweep --device cuda --output-root runs\depth_sweeps
 ```
 
+For the second-phase symbolic experiment with variables, n-ary and fixed-arity
+operators, arbitrary equivalence diagrams, competing paths, and plots A–K:
+
+```powershell
+python -m logic_sheaves complex-sweep --device cuda --output-root runs\equivalence_complexes
+```
+
+This evaluates eleven held-out diagram families, including involutions, De Morgan
+squares, an associativity pentagon, permutation hexagons, a commutativity cube,
+and a distributivity diamond. Rewrite transports are fitted on isolated pairs;
+complete test loops and alternative-path topologies remain held out. See the
+[equivalence-complex protocol](docs/equivalence_complex.md). A completed 18-model
+reference run, including all figures and machine-readable tables, is available in
+[the extended experiment report](runs/equivalence_complexes/equivalence_complex_20260902_211352_321084Z/report.md).
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -78,6 +93,10 @@ src/logic_sheaves/
   depth_sweep.py  1–6 layer sweep and checkpoint trajectory analysis
   patching.py     controlled counterfactual activation patching
   plotting.py     automatic A–J research figure suite
+  equivalence.py  arbitrary logical diagrams, paths, loops, and rewrite suites
+  diagram_metrics.py  generalized transport, path agreement, and holonomy
+  complex_experiment.py  symbolic multi-diagram experiment runner
+  complex_plotting.py  automatic figures for the extended experiment
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```
