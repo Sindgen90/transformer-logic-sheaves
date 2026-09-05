@@ -5,6 +5,7 @@ import torch
 
 from logic_sheaves.diagram_metrics import fit_rewrite_transports, score_equivalence_diagrams
 from logic_sheaves.equivalence import make_equivalence_suite, make_rewrite_calibration_pairs
+from logic_sheaves.metrics import OrthogonalTransport
 from logic_sheaves.model import ModelConfig, TinyLogicTransformer
 
 
@@ -49,6 +50,12 @@ class EquivalenceDiagramTests(unittest.TestCase):
         for row in rows:
             self.assertTrue(np.isfinite(row["holonomy_error"]))
             self.assertTrue(np.isfinite(row["transport_error"]))
+            self.assertTrue(np.isfinite(row["holonomy_rotation_error"]))
+            self.assertAlmostEqual(
+                row["holonomy_error"],
+                row["holonomy_systematic_error"] + row["holonomy_dispersion_error"],
+                places=6,
+            )
         path_rows = [row for row in rows if row["path_pairs_per_diagram"]]
         self.assertEqual({row["family"] for row in path_rows}, {
             "associativity_pentagon",
@@ -56,6 +63,29 @@ class EquivalenceDiagramTests(unittest.TestCase):
             "distributivity_diamond",
         })
         self.assertTrue(all(np.isfinite(row["path_agreement_error"]) for row in path_rows))
+
+    def test_identity_connection_has_zero_holonomy_but_nonzero_edge_error(self) -> None:
+        torch.manual_seed(27)
+        width = 16
+        model = TinyLogicTransformer(
+            ModelConfig(d_model=width, n_heads=4, n_layers=1, d_ff=32, max_length=128)
+        )
+        diagrams = make_equivalence_suite(4, operand_depth=1, seed=28)
+        labels = {edge.label for diagram in diagrams for edge in diagram.edges}
+        identity = OrthogonalTransport(
+            source_mean=np.zeros((1, width)),
+            target_mean=np.zeros((1, width)),
+            rotation=np.eye(width),
+        )
+        rows = score_equivalence_diagrams(
+            model,
+            diagrams,
+            {label: identity for label in labels},
+            device=torch.device("cpu"),
+        )
+        self.assertTrue(all(abs(row["holonomy_error"]) < 1e-12 for row in rows))
+        self.assertTrue(all(abs(row["holonomy_rotation_error"]) < 1e-12 for row in rows))
+        self.assertTrue(all(row["transport_error"] > 0.0 for row in rows))
 
 
 if __name__ == "__main__":

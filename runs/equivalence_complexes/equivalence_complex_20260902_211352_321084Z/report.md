@@ -24,6 +24,16 @@ as evidence that a model has learned globally coherent logical semantics. Edge
 fidelity, non-degeneracy controls, and behavioral performance must be considered
 together.
 
+### Post-hoc metric audit
+
+A dedicated [holonomy audit](holonomy_audit/report.md) now tests the fitted maps
+against identity and target-shuffled connections. It confirms that the implemented
+quantity is a valid held-out return-to-start error, but not a sufficient intrinsic
+holonomy or coherence score: the identity connection closes every loop perfectly
+while failing to perform the rewrites. The fitted connection does learn real edge
+structure (21.2% lower edge error than identity), but its closure measures do not
+robustly predict OOD behavior after controlling for depth and data regime.
+
 ## What was implemented
 
 ### Symbolic language

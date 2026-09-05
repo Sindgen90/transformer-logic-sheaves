@@ -90,6 +90,20 @@ def _apply_path(
     return state[0]
 
 
+def _path_rotation(
+    diagram: EquivalenceDiagram,
+    path: tuple[int, ...],
+    transports: dict[str, OrthogonalTransport],
+) -> np.ndarray:
+    """Return the linear part of a composed row-vector affine transport."""
+
+    first = transports[diagram.edges[path[0]].label]
+    rotation = np.eye(first.rotation.shape[0])
+    for edge_index in path:
+        rotation = rotation @ transports[diagram.edges[edge_index].label].rotation
+    return rotation
+
+
 def _score_family(
     diagrams: Sequence[EquivalenceDiagram],
     hidden: Sequence[np.ndarray],
@@ -106,6 +120,10 @@ def _score_family(
     loop_errors: list[float] = []
     path_errors: list[float] = []
     path_endpoint_errors: list[float] = []
+    loop_displacements: list[np.ndarray] = []
+    loop_rotation_errors: list[float] = []
+    loop_linear_action_errors: list[float] = []
+    loop_edge_accumulation_ratios: list[float] = []
     edge_sources: list[np.ndarray] = []
     edge_targets: list[np.ndarray] = []
     semantic_correct = 0
@@ -129,7 +147,31 @@ def _score_family(
             start_vertex = diagram.edges[loop[0]].source
             start = states[start_vertex]
             returned = _apply_path(start, diagram, loop, transports)
-            loop_errors.append(float(np.mean((returned - start) ** 2)))
+            displacement = returned - start
+            loop_error = float(np.mean(displacement**2))
+            loop_errors.append(loop_error)
+            loop_displacements.append(displacement)
+            rotation = _path_rotation(diagram, loop, transports)
+            identity = np.eye(rotation.shape[0])
+            loop_rotation_errors.append(
+                float(np.linalg.norm(rotation - identity, ord="fro") ** 2 / rotation.shape[0])
+            )
+            centered_start = start - all_hidden.mean(axis=0)
+            loop_linear_action_errors.append(
+                float(np.mean((centered_start @ rotation - centered_start) ** 2))
+            )
+            accumulated_edge_error = 0.0
+            for edge_index in loop:
+                edge = diagram.edges[edge_index]
+                predicted_target = transports[edge.label].apply(
+                    states[edge.source].reshape(1, -1)
+                )[0]
+                accumulated_edge_error += float(
+                    np.mean((predicted_target - states[edge.target]) ** 2)
+                )
+            loop_edge_accumulation_ratios.append(
+                loop_error / max(accumulated_edge_error, 1e-12)
+            )
         for pair in diagram.path_pairs:
             start = states[pair.start]
             left = _apply_path(start, diagram, pair.left, transports)
@@ -142,6 +184,12 @@ def _score_family(
 
     source_matrix = np.stack(edge_sources)
     target_matrix = np.stack(edge_targets)
+    displacement_matrix = np.stack(loop_displacements)
+    mean_displacement = displacement_matrix.mean(axis=0, keepdims=True)
+    systematic_error = float(np.mean(mean_displacement**2) / variance)
+    dispersion_error = float(
+        np.mean((displacement_matrix - mean_displacement) ** 2) / variance
+    )
     first = diagrams[0]
     return {
         "family": first.family,
@@ -156,6 +204,15 @@ def _score_family(
         "identity_error": float(np.mean(identity_errors) / variance),
         "transport_error": float(np.mean(transport_errors) / variance),
         "holonomy_error": float(np.mean(loop_errors) / variance),
+        "holonomy_systematic_error": systematic_error,
+        "holonomy_dispersion_error": dispersion_error,
+        "holonomy_rotation_error": float(np.mean(loop_rotation_errors)),
+        "holonomy_linear_action_error": float(
+            np.mean(loop_linear_action_errors) / variance
+        ),
+        "holonomy_edge_accumulation_ratio": float(
+            np.mean(loop_edge_accumulation_ratios)
+        ),
         "path_agreement_error": (
             float(np.mean(path_errors) / variance) if path_errors else float("nan")
         ),

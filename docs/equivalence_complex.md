@@ -91,6 +91,13 @@ still compose to something close to the identity. Conclusions therefore require
 edge fidelity, loop closure, path agreement, behavioral accuracy, and baselines
 to move together.
 
+The post-hoc audit additionally reports the rotation-group defect
+`||R_loop - I||_F^2 / d`, the action of that rotation on supported states, the
+systematic and context-dependent components of return-to-start displacement, and
+the ratio of final closure error to accumulated one-edge error. Identity and
+target-shuffled connections are mandatory controls: identity maps close every loop
+perfectly while performing no rewrite transport at all.
+
 ## Default run
 
 The default compares 2-, 4-, and 6-layer width-128 Transformers, three seeds, and
@@ -100,6 +107,12 @@ family.
 
 ```powershell
 python -m logic_sheaves complex-sweep --device cuda
+```
+
+Audit a completed run without retraining:
+
+```powershell
+python -m logic_sheaves holonomy-audit runs\equivalence_complexes\RUN_NAME --device cuda
 ```
 
 Every invocation creates a unique directory containing checkpoints, raw CSV/JSON

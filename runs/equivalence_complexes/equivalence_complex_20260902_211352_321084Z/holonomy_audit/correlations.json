@@ -1,0 +1,47 @@
+[
+  {
+    "metric": "transport_error",
+    "pearson_with_ood": -0.6053486634732862,
+    "partial_with_ood": -0.12196003964983934
+  },
+  {
+    "metric": "holonomy_error",
+    "pearson_with_ood": 0.5982945292869952,
+    "partial_with_ood": -0.08351504511580089
+  },
+  {
+    "metric": "holonomy_rotation_error",
+    "pearson_with_ood": 0.17047506608001528,
+    "partial_with_ood": 0.2790456170579012
+  },
+  {
+    "metric": "holonomy_linear_action_error",
+    "pearson_with_ood": 0.5030655253784321,
+    "partial_with_ood": -0.034184345769258245
+  },
+  {
+    "metric": "holonomy_systematic_error",
+    "pearson_with_ood": 0.6410458282446976,
+    "partial_with_ood": 0.23555605576604438
+  },
+  {
+    "metric": "holonomy_dispersion_error",
+    "pearson_with_ood": 0.5557028823081506,
+    "partial_with_ood": -0.12738756724311243
+  },
+  {
+    "metric": "holonomy_edge_accumulation_ratio",
+    "pearson_with_ood": 0.30351386680997794,
+    "partial_with_ood": -0.12449775752719827
+  },
+  {
+    "metric": "path_agreement_error",
+    "pearson_with_ood": 0.6681463081355092,
+    "partial_with_ood": 0.11900095397319699
+  },
+  {
+    "metric": "path_endpoint_error",
+    "pearson_with_ood": -0.43999244239278146,
+    "partial_with_ood": -0.009982487157214583
+  }
+]

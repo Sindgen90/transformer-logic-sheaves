@@ -50,6 +50,18 @@ complete test loops and alternative-path topologies remain held out. See the
 reference run, including all figures and machine-readable tables, is available in
 [the extended experiment report](runs/equivalence_complexes/equivalence_complex_20260902_211352_321084Z/report.md).
 
+To test whether the fitted connection's loop closure is meaningful rather than a
+degenerate cancellation, audit any completed run against identity and shuffled
+connections:
+
+```powershell
+python -m logic_sheaves holonomy-audit runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
+The reference run's [holonomy audit](runs/equivalence_complexes/equivalence_complex_20260902_211352_321084Z/holonomy_audit/report.md)
+shows why closure must be reported together with held-out edge fidelity, operator
+defect, affine drift, and competing-path endpoint error.
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -97,6 +109,7 @@ src/logic_sheaves/
   diagram_metrics.py  generalized transport, path agreement, and holonomy
   complex_experiment.py  symbolic multi-diagram experiment runner
   complex_plotting.py  automatic figures for the extended experiment
+  holonomy_audit.py  null connections and operator-level holonomy diagnostics
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

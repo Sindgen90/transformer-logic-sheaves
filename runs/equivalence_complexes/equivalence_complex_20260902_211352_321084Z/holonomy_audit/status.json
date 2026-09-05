@@ -1,0 +1,14 @@
+{
+  "status": "complete",
+  "models": 18,
+  "baselines": [
+    "fitted",
+    "shuffled",
+    "identity"
+  ],
+  "plots": [
+    "plots\\L_holonomy_decomposition.png",
+    "plots\\M_holonomy_nulls.png",
+    "plots\\N_holonomy_correlations.png"
+  ]
+}

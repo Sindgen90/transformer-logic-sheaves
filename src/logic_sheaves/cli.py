@@ -6,6 +6,7 @@ from pathlib import Path
 from .complex_experiment import default_complex_config, run_complex_experiment
 from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
+from .holonomy_audit import run_holonomy_audit
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,11 +57,21 @@ def build_parser() -> argparse.ArgumentParser:
     complex_sweep.add_argument("--test-size", type=int, default=1_000)
     complex_sweep.add_argument("--calibration-pairs", type=int, default=192)
     complex_sweep.add_argument("--diagrams-per-family", type=int, default=96)
+    holonomy_audit = subparsers.add_parser(
+        "holonomy-audit",
+        help="Audit a completed complex sweep with operator diagnostics and null connections.",
+    )
+    holonomy_audit.add_argument("run_directory", type=Path)
+    holonomy_audit.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "holonomy-audit":
+        audit_directory = run_holonomy_audit(args.run_directory, device=args.device)
+        print(f"Holonomy-audit artifacts: {audit_directory.resolve()}")
+        return
     if args.command == "complex-sweep":
         config = default_complex_config(
             args.output_root,
