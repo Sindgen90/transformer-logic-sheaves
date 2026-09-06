@@ -7,6 +7,7 @@ from .complex_experiment import default_complex_config, run_complex_experiment
 from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
 from .holonomy_audit import run_holonomy_audit
+from .qkv_holonomy import run_qkv_holonomy
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,11 +64,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     holonomy_audit.add_argument("run_directory", type=Path)
     holonomy_audit.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    qkv_holonomy = subparsers.add_parser(
+        "qkv-holonomy",
+        help="Measure balanced Q/K/V rewrite transport and holonomy at every layer.",
+    )
+    qkv_holonomy.add_argument("run_directory", type=Path)
+    qkv_holonomy.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "qkv-holonomy":
+        qkv_directory = run_qkv_holonomy(args.run_directory, device=args.device)
+        print(f"QKV-holonomy artifacts: {qkv_directory.resolve()}")
+        return
     if args.command == "holonomy-audit":
         audit_directory = run_holonomy_audit(args.run_directory, device=args.device)
         print(f"Holonomy-audit artifacts: {audit_directory.resolve()}")

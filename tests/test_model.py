@@ -19,6 +19,24 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(logits.shape, (2, 2))
         self.assertEqual(hidden.shape[:2], batch.tokens.shape)
 
+    def test_qkv_projection_shapes_and_first_layer_cls_is_input_constant(self) -> None:
+        expressions = [
+            binary("AND", literal(0), literal(1)),
+            unary("NOT", binary("OR", literal(0), literal(1))),
+        ]
+        batch = collate_expressions(expressions)
+        model = TinyLogicTransformer(
+            ModelConfig(d_model=16, n_heads=4, n_layers=2, d_ff=32)
+        )
+        layers = model.qkv_projections(batch.tokens, batch.padding_mask)
+        self.assertEqual(len(layers), 2)
+        for q, k, v in layers:
+            self.assertEqual(q.shape, (*batch.tokens.shape, 4, 4))
+            self.assertEqual(k.shape, q.shape)
+            self.assertEqual(v.shape, q.shape)
+        for component in layers[0]:
+            torch.testing.assert_close(component[0, 0], component[1, 0])
+
     def test_stage_capture_and_patching(self) -> None:
         recipients = [
             binary("XOR", binary("AND", literal(0), literal(1)), literal(0)),

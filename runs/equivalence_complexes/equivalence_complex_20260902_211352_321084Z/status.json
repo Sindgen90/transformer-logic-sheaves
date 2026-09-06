@@ -17,5 +17,6 @@
     "plots\\K_diagram_atlas.png"
   ],
   "run_directory": "C:\\Users\\nikso\\Documents\\ChatGPT\\Transformer_Logic_Sheaves\\runs\\equivalence_complexes\\equivalence_complex_20260902_211352_321084Z",
-  "holonomy_audit": "holonomy_audit\\status.json"
+  "holonomy_audit": "holonomy_audit\\status.json",
+  "qkv_holonomy": "qkv_holonomy\\status.json"
 }

@@ -1,0 +1,22 @@
+{
+  "status": "complete",
+  "models": 18,
+  "balanced_pairs_per_rewrite": 192,
+  "components": [
+    "query",
+    "key",
+    "value"
+  ],
+  "scopes": [
+    "cls",
+    "token_mean"
+  ],
+  "plots": [
+    "plots\\O_qkv_edge_transport.png",
+    "plots\\P_qkv_holonomy.png",
+    "plots\\Q_qkv_activation_variance.png",
+    "plots\\R_qkv_per_head_edge_gain.png",
+    "plots\\S_qkv_per_head_holonomy.png",
+    "plots\\T_qkv_condition_comparison.png"
+  ]
+}

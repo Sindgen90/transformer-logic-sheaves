@@ -62,6 +62,16 @@ The reference run's [holonomy audit](runs/equivalence_complexes/equivalence_comp
 shows why closure must be reported together with held-out edge fidelity, operator
 defect, affine drift, and competing-path endpoint error.
 
+For layerwise attention localization, fit balanced rewrite transports independently
+to queries, keys, and values at `<CLS>` and across content tokens:
+
+```powershell
+python -m logic_sheaves qkv-holonomy runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
+The completed reference [Q/K/V holonomy report](runs/equivalence_complexes/equivalence_complex_20260902_211352_321084Z/qkv_holonomy/report.md)
+contains joint-head and per-head results for every available layer.
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -110,6 +120,7 @@ src/logic_sheaves/
   complex_experiment.py  symbolic multi-diagram experiment runner
   complex_plotting.py  automatic figures for the extended experiment
   holonomy_audit.py  null connections and operator-level holonomy diagnostics
+  qkv_holonomy.py  balanced layerwise and per-head Q/K/V localization
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

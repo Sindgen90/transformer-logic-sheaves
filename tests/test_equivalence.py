@@ -35,6 +35,14 @@ class EquivalenceDiagramTests(unittest.TestCase):
             self.assertEqual(len(label_pairs), 4)
             self.assertTrue(all(source.value == target.value for source, target in label_pairs))
 
+    def test_balanced_rewrite_pairs_are_balanced_per_label(self) -> None:
+        pairs = make_rewrite_calibration_pairs(
+            10, operand_depth=1, seed=29, balance=True
+        )
+        self.assertTrue(
+            all(sum(source.value for source, _ in label_pairs) == 5 for label_pairs in pairs.values())
+        )
+
     def test_general_metrics_cover_loops_and_competing_paths(self) -> None:
         torch.manual_seed(24)
         model = TinyLogicTransformer(

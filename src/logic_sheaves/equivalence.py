@@ -430,11 +430,14 @@ def make_rewrite_calibration_pairs(
     operand_depth: int,
     seed: int,
     variables: tuple[str, ...] = VARIABLES[:4],
+    balance: bool = False,
 ) -> dict[str, list[tuple[AssignedExpression, AssignedExpression]]]:
     """Sample isolated rewrite pairs without exposing complete held-out diagrams."""
 
     if count_per_label < 2:
         raise ValueError("count_per_label must be at least 2")
+    if balance and count_per_label % 2:
+        raise ValueError("Balanced rewrite-pair counts must be even")
     rng = Random(seed)
     examples = [builder(rng, operand_depth, variables) for builder in DIAGRAM_BUILDERS]
     label_sources: dict[str, tuple[DiagramBuilder, str]] = {}
@@ -445,10 +448,17 @@ def make_rewrite_calibration_pairs(
     result: dict[str, list[tuple[AssignedExpression, AssignedExpression]]] = {}
     for label, (builder, _) in label_sources.items():
         pairs: list[tuple[AssignedExpression, AssignedExpression]] = []
+        label_counts = [0, 0]
         while len(pairs) < count_per_label:
             diagram = builder(rng, operand_depth, variables)
             matching = [edge for edge in diagram.edges if edge.label == label]
             edge = rng.choice(matching)
-            pairs.append((diagram.vertices[edge.source], diagram.vertices[edge.target]))
+            source = diagram.vertices[edge.source]
+            target = diagram.vertices[edge.target]
+            value = source.value
+            if balance and label_counts[value] >= count_per_label // 2:
+                continue
+            pairs.append((source, target))
+            label_counts[value] += 1
         result[label] = pairs
     return result

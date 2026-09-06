@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 from .data import PAD_ID, VOCAB
 
@@ -129,6 +130,38 @@ class TinyLogicTransformer(nn.Module):
 
         _, stages = self.encode(tokens, padding_mask, capture_stages=True)
         return stages
+
+    def qkv_projections(
+        self,
+        tokens: torch.Tensor,
+        padding_mask: torch.Tensor | None = None,
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor, torch.Tensor], ...]:
+        """Return the exact pre-attention Q, K, and V projections at every layer.
+
+        Each tensor has shape ``[batch, sequence, heads, head_dimension]``. Because
+        this encoder uses pre-norm layers, projections are taken from ``norm1`` of
+        the residual stream entering each layer.
+        """
+
+        stages = self.stage_representations(tokens, padding_mask)
+        outputs: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
+        for index, layer in enumerate(self.encoder.layers):
+            attention_input = layer.norm1(stages[index]) if layer.norm_first else stages[index]
+            if layer.self_attn.in_proj_weight is None:
+                raise RuntimeError("Separate Q/K/V projection weights are not supported")
+            projected = F.linear(
+                attention_input,
+                layer.self_attn.in_proj_weight,
+                layer.self_attn.in_proj_bias,
+            )
+            heads = layer.self_attn.num_heads
+            head_dimension = self.config.d_model // heads
+            q, k, v = (
+                item.reshape(item.shape[0], item.shape[1], heads, head_dimension)
+                for item in projected.chunk(3, dim=-1)
+            )
+            outputs.append((q, k, v))
+        return tuple(outputs)
 
     def forward_patched(
         self,

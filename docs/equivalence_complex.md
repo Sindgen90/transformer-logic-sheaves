@@ -115,6 +115,13 @@ Audit a completed run without retraining:
 python -m logic_sheaves holonomy-audit runs\equivalence_complexes\RUN_NAME --device cuda
 ```
 
+Localize the same connection separately in pre-attention queries, keys, and values
+at every layer and head:
+
+```powershell
+python -m logic_sheaves qkv-holonomy runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
 Every invocation creates a unique directory containing checkpoints, raw CSV/JSON
 tables, a generated Markdown report, exact configuration and status files, and
 figures A-K.

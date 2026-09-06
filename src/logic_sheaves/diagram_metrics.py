@@ -107,7 +107,7 @@ def _path_rotation(
 def _score_family(
     diagrams: Sequence[EquivalenceDiagram],
     hidden: Sequence[np.ndarray],
-    predicted: Sequence[np.ndarray],
+    predicted: Sequence[np.ndarray] | None,
     transports: dict[str, OrthogonalTransport],
 ) -> dict[str, Any]:
     all_hidden = np.concatenate(hidden, axis=0)
@@ -130,11 +130,16 @@ def _score_family(
     semantic_total = 0
     consistent = 0
 
-    for diagram, states, predictions_for_diagram in zip(diagrams, hidden, predicted):
+    if predicted is None:
+        predictions = [None] * len(diagrams)
+    else:
+        predictions = list(predicted)
+    for diagram, states, predictions_for_diagram in zip(diagrams, hidden, predictions):
         labels = np.asarray([vertex.value for vertex in diagram.vertices])
-        semantic_correct += int((predictions_for_diagram == labels).sum())
-        semantic_total += len(labels)
-        consistent += int(np.all(predictions_for_diagram == predictions_for_diagram[0]))
+        if predictions_for_diagram is not None:
+            semantic_correct += int((predictions_for_diagram == labels).sum())
+            semantic_total += len(labels)
+            consistent += int(np.all(predictions_for_diagram == predictions_for_diagram[0]))
         for edge in diagram.edges:
             source = states[edge.source]
             target = states[edge.target]
@@ -199,8 +204,12 @@ def _score_family(
         "loops_per_diagram": len(first.loops),
         "path_pairs_per_diagram": len(first.path_pairs),
         "mean_loop_length": float(np.mean([len(loop) for item in diagrams for loop in item.loops])),
-        "semantic_accuracy": semantic_correct / semantic_total,
-        "prediction_consistency": consistent / len(diagrams),
+        "semantic_accuracy": (
+            semantic_correct / semantic_total if semantic_total else float("nan")
+        ),
+        "prediction_consistency": (
+            consistent / len(diagrams) if semantic_total else float("nan")
+        ),
         "identity_error": float(np.mean(identity_errors) / variance),
         "transport_error": float(np.mean(transport_errors) / variance),
         "holonomy_error": float(np.mean(loop_errors) / variance),
@@ -267,3 +276,38 @@ def score_equivalence_diagrams(
             )
         )
     return rows
+
+
+def score_equivalence_diagram_features(
+    diagrams: Sequence[EquivalenceDiagram],
+    features: np.ndarray,
+    transports: dict[str, OrthogonalTransport],
+) -> list[dict[str, Any]]:
+    """Score precomputed fixed-width features in diagram-vertex order."""
+
+    missing = sorted(
+        {edge.label for diagram in diagrams for edge in diagram.edges} - set(transports)
+    )
+    if missing:
+        raise ValueError(f"No fitted transport for rewrite labels: {missing}")
+    expected = sum(len(diagram.vertices) for diagram in diagrams)
+    if features.ndim != 2 or len(features) != expected:
+        raise ValueError(f"Expected a [{expected}, width] feature matrix")
+    hidden_by_diagram: list[np.ndarray] = []
+    cursor = 0
+    for diagram in diagrams:
+        next_cursor = cursor + len(diagram.vertices)
+        hidden_by_diagram.append(features[cursor:next_cursor])
+        cursor = next_cursor
+    grouped: dict[str, list[int]] = defaultdict(list)
+    for index, diagram in enumerate(diagrams):
+        grouped[diagram.family].append(index)
+    return [
+        _score_family(
+            [diagrams[index] for index in indices],
+            [hidden_by_diagram[index] for index in indices],
+            None,
+            transports,
+        )
+        for indices in grouped.values()
+    ]

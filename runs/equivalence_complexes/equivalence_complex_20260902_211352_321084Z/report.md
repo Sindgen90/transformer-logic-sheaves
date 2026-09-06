@@ -34,6 +34,12 @@ while failing to perform the rewrites. The fitted connection does learn real edg
 structure (21.2% lower edge error than identity), but its closure measures do not
 robustly predict OOD behavior after controlling for depth and data regime.
 
+A second [layerwise Q/K/V report](qkv_holonomy/report.md) fits balanced transports
+independently to pre-attention queries, keys, and values. It finds strong lexical
+invariance in layer-1 token means and a later global signal concentrated more in
+`<CLS>` queries than keys or values, but the signal is not specific to the
+higher-diversity, better-generalizing models.
+
 ## What was implemented
 
 ### Symbolic language
