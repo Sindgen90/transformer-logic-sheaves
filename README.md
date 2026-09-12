@@ -122,6 +122,18 @@ python -m logic_sheaves local-global runs\equivalence_complexes\RUN_NAME --devic
 The first results are summarized in the
 [local/global correctness report](docs/local_global_correctness_results_20260913.md).
 
+Run the confirmatory six-step protocol on entirely new diagrams: fixed
+family-global charts, per-example correctness prediction with controls,
+higher-diversity leave-one-seed-out validation, a frozen low-diversity transfer,
+and discovery/confirmation Q/K/V path circuits with rank-matched controls:
+
+```powershell
+python -m logic_sheaves confirmatory-sheaf runs\equivalence_complexes\RUN_NAME --device cuda --diagrams-per-family 128 --chart-dimension 8 --circuit-rank 4
+```
+
+The completed run is summarized in the
+[confirmatory sheaf and circuit report](docs/confirmatory_sheaf_results_20260913.md).
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -179,6 +191,7 @@ src/logic_sheaves/
   circuit_selection.py  discovery/confirmation causal circuit nominations
   typed_gauge_experiment.py  type-correct loop holonomy and persistence analysis
   local_global_experiment.py  chart-scale, correctness, and connection-sheaf analysis
+  confirmatory_experiment.py  disjoint correctness prediction and targeted path circuits
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from .complex_experiment import default_complex_config, run_complex_experiment
+from .confirmatory_experiment import run_confirmatory_experiment
 from .contextual_holonomy import run_contextual_holonomy
 from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
@@ -160,11 +161,30 @@ def build_parser() -> argparse.ArgumentParser:
     local_global.add_argument("--min-sigma", type=float, default=0.0)
     local_global.add_argument("--min-condition-ratio", type=float, default=0.0)
     local_global.add_argument("--max-bootstrap-stability", type=float, default=0.5)
+    confirmatory = subparsers.add_parser(
+        "confirmatory-sheaf",
+        help="Run the disjoint family-global correctness and targeted path-circuit study.",
+    )
+    confirmatory.add_argument("run_directory", type=Path)
+    confirmatory.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    confirmatory.add_argument("--diagrams-per-family", type=int, default=128)
+    confirmatory.add_argument("--chart-dimension", type=int, default=8)
+    confirmatory.add_argument("--circuit-rank", type=int, default=4)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "confirmatory-sheaf":
+        result_directory = run_confirmatory_experiment(
+            args.run_directory,
+            device=args.device,
+            diagrams_per_family=args.diagrams_per_family,
+            chart_dimension=args.chart_dimension,
+            circuit_rank=args.circuit_rank,
+        )
+        print(f"Confirmatory artifacts: {result_directory.resolve()}")
+        return
     if args.command == "local-global":
         result_directory = run_local_global_experiment(
             args.run_directory,
