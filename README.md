@@ -111,6 +111,17 @@ acceptance criteria are in the [gauge-atlas design](docs/gauge_atlas.md).
 The first corrected run and its caveats are summarized in the
 [typed-gauge results](docs/typed_gauge_results_20260912.md).
 
+Compare global, family-global, and vertex-local charts on balanced correct and
+incorrect predictions, including shared-connection state return, connection-sheaf
+section energy, and the sheaf-Laplacian spectrum:
+
+```powershell
+python -m logic_sheaves local-global runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
+The first results are summarized in the
+[local/global correctness report](docs/local_global_correctness_results_20260913.md).
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -167,6 +178,7 @@ src/logic_sheaves/
   gauge_experiment.py  layerwise Q/K/V atlas, controls, circuit filters, and bit flips
   circuit_selection.py  discovery/confirmation causal circuit nominations
   typed_gauge_experiment.py  type-correct loop holonomy and persistence analysis
+  local_global_experiment.py  chart-scale, correctness, and connection-sheaf analysis
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

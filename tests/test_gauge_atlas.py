@@ -6,11 +6,16 @@ from logic_sheaves.gauge_atlas import (
     AtlasChart,
     AtlasEdge,
     bootstrap_transport_stability,
+    chart_reconstruction_errors,
     fit_atlas,
+    fit_atlas_edges,
     gauge_transform,
+    heldout_cycle_return_errors,
+    heldout_section_energies,
     holonomy_distances,
     proxy_connection_control,
     reparameterize_atlas,
+    sheaf_laplacian_spectrum,
     stable_subgraph,
     topology_shuffled_transport_null,
     typed_fundamental_cycles,
@@ -168,6 +173,35 @@ class GaugeAtlasTests(unittest.TestCase):
             max_bootstrap_stability=0.1,
         )
         self.assertEqual(set(retained), {(0, 1)})
+
+    def test_supplied_shared_chart_and_per_example_sheaf_metrics(self) -> None:
+        rng = np.random.default_rng(31)
+        latent = rng.normal(size=(64, 2))
+        rotations = (_rotation(0.0), _rotation(0.2), _rotation(0.5))
+        samples = np.stack([latent @ rotation.T for rotation in rotations], axis=1)
+        shared = AtlasChart(np.zeros((1, 2)), np.eye(2))
+        charts = {vertex: shared for vertex in range(3)}
+        edges = fit_atlas_edges(
+            samples,
+            ((0, 1), (1, 2), (0, 2)),
+            np.arange(40),
+            dimension=2,
+            ridge=1e-8,
+            charts=charts,
+        )
+        evaluation = np.arange(40, 64)
+        reconstruction = chart_reconstruction_errors(charts, samples, evaluation)
+        section = heldout_section_energies(edges, samples, evaluation)
+        returned = heldout_cycle_return_errors(edges, samples, evaluation)
+        self.assertEqual(reconstruction.shape, (24,))
+        self.assertEqual(section.shape, (24,))
+        self.assertEqual(returned.shape, (24,))
+        self.assertLess(float(reconstruction.max()), 1e-12)
+        self.assertLess(float(section.max()), 1e-12)
+        self.assertLess(float(returned.max()), 1e-12)
+        spectrum, approximate_h0 = sheaf_laplacian_spectrum(edges)
+        self.assertEqual(len(spectrum), 6)
+        self.assertEqual(approximate_h0, 2)
 
 
 if __name__ == "__main__":

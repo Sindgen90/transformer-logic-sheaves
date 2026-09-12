@@ -607,18 +607,24 @@ def fit_atlas_edges(
     random_basis_seed: int | None = None,
     bootstrap_samples: int = 0,
     bootstrap_seed: int = 0,
+    charts: Mapping[int, AtlasChart] | None = None,
 ) -> dict[tuple[int, int], AtlasEdge]:
     if samples.ndim != 3:
         raise ValueError("samples must have shape [instances, vertices, features]")
     rng = np.random.default_rng(random_basis_seed)
-    charts: dict[int, AtlasChart] = {}
-    for vertex in range(samples.shape[1]):
-        chart_samples = samples[fit_indices, vertex]
-        charts[vertex] = (
-            fit_chart(chart_samples, dimension)
-            if random_basis_seed is None
-            else random_chart(chart_samples, dimension, rng)
-        )
+    fitted_charts: dict[int, AtlasChart] = {}
+    if charts is not None:
+        fitted_charts = dict(charts)
+        if set(fitted_charts) != set(range(samples.shape[1])):
+            raise ValueError("Supplied charts must cover every vertex")
+    else:
+        for vertex in range(samples.shape[1]):
+            chart_samples = samples[fit_indices, vertex]
+            fitted_charts[vertex] = (
+                fit_chart(chart_samples, dimension)
+                if random_basis_seed is None
+                else random_chart(chart_samples, dimension, rng)
+            )
     fitted: dict[tuple[int, int], AtlasEdge] = {}
     for edge_index, (source, target) in enumerate(canonical_edges(edge_pairs)):
         key = (source, target)
@@ -630,8 +636,8 @@ def fit_atlas_edges(
             target,
             source_samples,
             target_samples,
-            charts[source],
-            charts[target],
+            fitted_charts[source],
+            fitted_charts[target],
             ridge=ridge,
             target_order=target_order,
         )
@@ -646,6 +652,105 @@ def fit_atlas_edges(
         )
         fitted[key] = replace(edge, bootstrap_stability=stability)
     return fitted
+
+
+def chart_reconstruction_errors(
+    charts: Mapping[int, AtlasChart],
+    samples: np.ndarray,
+    evaluation_indices: np.ndarray,
+) -> np.ndarray:
+    """Return one variance-normalized chart reconstruction error per instance."""
+
+    if len(evaluation_indices) == 0:
+        return np.asarray([], dtype=float)
+    selected = samples[evaluation_indices]
+    variance = max(float(np.mean((selected - selected.mean(axis=(0, 1))) ** 2)), 1e-12)
+    errors = np.zeros(len(evaluation_indices), dtype=float)
+    for vertex, chart in charts.items():
+        original = selected[:, vertex]
+        reconstructed = chart.reconstruct(chart.coordinates(original))
+        errors += np.mean((reconstructed - original) ** 2, axis=1) / variance
+    return errors / len(charts)
+
+
+def heldout_cycle_return_errors(
+    edges: Mapping[tuple[int, int], AtlasEdge],
+    samples: np.ndarray,
+    evaluation_indices: np.ndarray,
+) -> np.ndarray:
+    """Return mean variance-normalized affine loop-return error per instance."""
+
+    if not edges or len(evaluation_indices) == 0:
+        return np.full(len(evaluation_indices), np.nan)
+    vertices = sorted({vertex for key in edges for vertex in key})
+    inverse_remap = dict(enumerate(vertices))
+    cycle_errors: list[np.ndarray] = []
+    for cycle in typed_component_cycles(edges):
+        traversals = tuple(
+            (inverse_remap[source], inverse_remap[target]) for source, target in cycle.traversals
+        )
+        start = traversals[0][0]
+        initial = samples[evaluation_indices, start]
+        returned = compose_state_path(edges, initial, traversals)
+        variance = max(float(np.mean((initial - initial.mean(axis=0)) ** 2)), 1e-12)
+        cycle_errors.append(np.mean((returned - initial) ** 2, axis=1) / variance)
+    return (
+        np.mean(np.stack(cycle_errors), axis=0)
+        if cycle_errors
+        else np.full(len(evaluation_indices), np.nan)
+    )
+
+
+def heldout_section_energies(
+    edges: Mapping[tuple[int, int], AtlasEdge],
+    samples: np.ndarray,
+    evaluation_indices: np.ndarray,
+) -> np.ndarray:
+    """Evaluate the connection-sheaf coboundary energy for each held-out section.
+
+    For canonical edge ``u -> v``, use edge stalk ``F_v`` with restrictions
+    ``rho_u = Q_vu`` and ``rho_v = I``.  The residual is therefore
+    ``Q_vu z_u - z_v``.
+    """
+
+    if not edges or len(evaluation_indices) == 0:
+        return np.full(len(evaluation_indices), np.nan)
+    energies = np.zeros(len(evaluation_indices), dtype=float)
+    scales: list[np.ndarray] = []
+    for (source, target), edge in edges.items():
+        source_coordinates = edge.source_chart.coordinates(samples[evaluation_indices, source])
+        target_coordinates = edge.target_chart.coordinates(samples[evaluation_indices, target])
+        residual = source_coordinates @ edge.transport.T - target_coordinates
+        energies += np.mean(residual**2, axis=1)
+        scales.extend((source_coordinates, target_coordinates))
+    joined = np.concatenate(scales, axis=0)
+    variance = max(float(np.mean((joined - joined.mean(axis=0)) ** 2)), 1e-12)
+    return energies / (len(edges) * variance)
+
+
+def sheaf_laplacian_spectrum(
+    edges: Mapping[tuple[int, int], AtlasEdge],
+    *,
+    relative_tolerance: float = 1e-7,
+) -> tuple[np.ndarray, int]:
+    """Return the connection-sheaf Laplacian spectrum and approximate H0 dimension."""
+
+    if not edges:
+        return np.asarray([], dtype=float), 0
+    vertices = sorted({vertex for key in edges for vertex in key})
+    vertex_index = {vertex: index for index, vertex in enumerate(vertices)}
+    width = next(iter(edges.values())).transport.shape[0]
+    coboundary = np.zeros((len(edges) * width, len(vertices) * width))
+    for edge_index, ((source, target), edge) in enumerate(sorted(edges.items())):
+        rows = slice(edge_index * width, (edge_index + 1) * width)
+        source_columns = slice(vertex_index[source] * width, (vertex_index[source] + 1) * width)
+        target_columns = slice(vertex_index[target] * width, (vertex_index[target] + 1) * width)
+        coboundary[rows, source_columns] = edge.transport
+        coboundary[rows, target_columns] = -np.eye(width)
+    eigenvalues = np.linalg.eigvalsh(coboundary.T @ coboundary)
+    scale = max(float(eigenvalues.max()), 1.0)
+    approximate_h0 = int(np.sum(eigenvalues <= relative_tolerance * scale))
+    return eigenvalues, approximate_h0
 
 
 def heldout_edge_fidelity(

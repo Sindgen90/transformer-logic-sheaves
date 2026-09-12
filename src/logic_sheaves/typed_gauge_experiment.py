@@ -80,8 +80,9 @@ def _circuit_specs(nominations: list[CircuitNomination], heads: int) -> list[dic
     for (layer, scope, nomination_component, status), selected in sorted(grouped.items()):
         selected_heads = tuple(sorted(selected))
         complement = tuple(head for head in all_heads if head not in selected_heads)
-        discovery = _mean([item[0] for item in scores[(layer, scope, status)]])
-        confirmation = _mean([item[1] for item in scores[(layer, scope, status)]])
+        score_key = (layer, scope, nomination_component, status)
+        discovery = _mean([item[0] for item in scores[score_key]])
+        confirmation = _mean([item[1] for item in scores[score_key]])
         for mode, mode_heads in (
             ("circuit", selected_heads),
             ("complement", complement),

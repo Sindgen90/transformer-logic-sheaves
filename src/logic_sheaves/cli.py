@@ -9,6 +9,7 @@ from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
 from .gauge_experiment import ATLAS_COMPONENTS, ATLAS_SCOPES, run_gauge_atlas
 from .holonomy_audit import run_holonomy_audit
+from .local_global_experiment import run_local_global_experiment
 from .path_patching import run_path_patching
 from .qkv_holonomy import run_qkv_holonomy
 from .qkv_patching import run_qkv_patching
@@ -141,11 +142,43 @@ def build_parser() -> argparse.ArgumentParser:
     typed_gauge.add_argument("--max-bootstrap-stability", type=float, default=0.35)
     typed_gauge.add_argument("--bootstrap-samples", type=int, default=16)
     typed_gauge.add_argument("--bitflip-variable", choices=("x0", "x1", "x2", "x3"), default="x0")
+    local_global = subparsers.add_parser(
+        "local-global",
+        help="Compare global/family/local charts and correct/incorrect logical predictions.",
+    )
+    local_global.add_argument("run_directory", type=Path)
+    local_global.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    local_global.add_argument(
+        "--conditions",
+        nargs="+",
+        choices=("higher_diversity", "low_diversity"),
+        default=None,
+    )
+    local_global.add_argument("--seeds", type=int, nargs="+", default=None)
+    local_global.add_argument("--chart-dimensions", type=int, nargs="+", default=None)
+    local_global.add_argument("--bootstrap-samples", type=int, default=8)
+    local_global.add_argument("--min-sigma", type=float, default=0.0)
+    local_global.add_argument("--min-condition-ratio", type=float, default=0.0)
+    local_global.add_argument("--max-bootstrap-stability", type=float, default=0.5)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "local-global":
+        result_directory = run_local_global_experiment(
+            args.run_directory,
+            device=args.device,
+            conditions=tuple(args.conditions or ("higher_diversity",)),
+            seeds=None if args.seeds is None else tuple(sorted(set(args.seeds))),
+            chart_dimensions=tuple(args.chart_dimensions or (8,)),
+            bootstrap_samples=args.bootstrap_samples,
+            min_sigma=args.min_sigma,
+            min_condition_ratio=args.min_condition_ratio,
+            max_bootstrap_stability=args.max_bootstrap_stability,
+        )
+        print(f"Local/global artifacts: {result_directory.resolve()}")
+        return
     if args.command == "typed-gauge":
         typed_directory = run_typed_gauge_experiment(
             args.run_directory,
