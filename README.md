@@ -72,6 +72,45 @@ python -m logic_sheaves qkv-holonomy runs\equivalence_complexes\RUN_NAME --devic
 The completed reference [Q/K/V holonomy report](runs/equivalence_complexes/equivalence_complex_20260902_211352_321084Z/qkv_holonomy/report.md)
 contains joint-head and per-head results for every available layer.
 
+Run exact causal pre-attention Q/K/V patching, followed by the
+context-conditioned transport and equivalent-path causal tests:
+
+```powershell
+python -m logic_sheaves qkv-patching runs\equivalence_complexes\RUN_NAME --device cuda
+python -m logic_sheaves contextual-holonomy runs\equivalence_complexes\RUN_NAME --device cuda --calibration-pairs 96
+python -m logic_sheaves path-patching runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
+These commands write separate `qkv_patching`, `contextual_holonomy`, and
+`path_patching` directories inside the selected run. The contextual analysis
+reports local and common-`<CLS>` fibers, separate and coupled Q/K transport,
+identity/target-shuffled/label-shuffled/rank-8 controls, operator eigenphases,
+and Q/K geometry for every layer and head.
+
+Fit the paper-style local-chart gauge connection and compare it directly with
+held-out state-return error:
+
+```powershell
+python -m logic_sheaves gauge-atlas runs\equivalence_complexes\RUN_NAME --device cuda --bit-flips x0 x1
+```
+
+Run the corrected typed-loop analysis—separate `Q` and `P` loop transports,
+`H_rel = H_P^-1 H_Q`, frozen discovery/confirmation circuits, persistence and
+bootstrap gates, same-mask nulls, and a paired variable intervention:
+
+```powershell
+python -m logic_sheaves typed-gauge runs\equivalence_complexes\RUN_NAME --device cuda
+```
+
+The legacy `gauge-atlas` command accepts `--heads 1 3` for an explicit head
+restriction. `typed-gauge` instead freezes head sets automatically from the
+discovery/confirmation patching split and includes their complements and all
+heads as localization controls. Every invocation gets a new timestamped folder.
+The exact definitions, normalization correction, circuit protocol, and
+acceptance criteria are in the [gauge-atlas design](docs/gauge_atlas.md).
+The first corrected run and its caveats are summarized in the
+[typed-gauge results](docs/typed_gauge_results_20260912.md).
+
 Every invocation creates a new timestamped subdirectory and never overwrites an
 earlier run. See [the depth-sweep protocol](docs/depth_sweep.md) for the exact
 controls, patching intervention, output tables, and figure definitions.
@@ -121,6 +160,13 @@ src/logic_sheaves/
   complex_plotting.py  automatic figures for the extended experiment
   holonomy_audit.py  null connections and operator-level holonomy diagnostics
   qkv_holonomy.py  balanced layerwise and per-head Q/K/V localization
+  qkv_patching.py  exact causal pre-attention Q/K/V interventions
+  contextual_holonomy.py  bidirectional context-conditioned connections and geometry
+  path_patching.py  causal comparison of equivalent rewrite routes
+  gauge_atlas.py  chart, connection, gauge, and fundamental-cycle primitives
+  gauge_experiment.py  layerwise Q/K/V atlas, controls, circuit filters, and bit flips
+  circuit_selection.py  discovery/confirmation causal circuit nominations
+  typed_gauge_experiment.py  type-correct loop holonomy and persistence analysis
 tests/           logic, data, model, and metric checks
 docs/            experimental rationale and falsification criteria
 ```

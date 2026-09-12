@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
 import torch
@@ -162,6 +163,121 @@ class TinyLogicTransformer(nn.Module):
             )
             outputs.append((q, k, v))
         return tuple(outputs)
+
+    @staticmethod
+    def _attention_from_qkv(
+        layer: nn.TransformerEncoderLayer,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        padding_mask: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """Evaluate a layer's attention from explicit per-head Q/K/V tensors."""
+
+        query = query.transpose(1, 2)
+        key = key.transpose(1, 2)
+        value = value.transpose(1, 2)
+        attention_mask = (
+            None if padding_mask is None else (~padding_mask)[:, None, None, :]
+        )
+        mixed = F.scaled_dot_product_attention(
+            query,
+            key,
+            value,
+            attn_mask=attention_mask,
+            dropout_p=float(layer.self_attn.dropout) if layer.training else 0.0,
+        )
+        mixed = mixed.transpose(1, 2).contiguous().reshape(mixed.shape[0], mixed.shape[2], -1)
+        return layer.self_attn.out_proj(mixed)
+
+    @staticmethod
+    def _replace_qkv_at_positions(
+        tensor: torch.Tensor,
+        positions: torch.Tensor,
+        values: torch.Tensor,
+        head: int | None,
+    ) -> torch.Tensor:
+        if positions.shape != (tensor.shape[0],):
+            raise ValueError("patch_positions must contain one position per batch item")
+        if values.shape != (tensor.shape[0], tensor.shape[2], tensor.shape[3]):
+            raise ValueError("Q/K/V patch values must have shape [batch, heads, head_dimension]")
+        if positions.min().item() < 0 or positions.max().item() >= tensor.shape[1]:
+            raise ValueError("A Q/K/V patch position is outside the sequence")
+        if head is not None and not 0 <= head < tensor.shape[2]:
+            raise ValueError(f"patch_head must be between 0 and {tensor.shape[2] - 1}")
+        patched = tensor.clone()
+        rows = torch.arange(tensor.shape[0], device=tensor.device)
+        if head is None:
+            patched[rows, positions] = values
+        else:
+            patched[rows, positions, head] = values[:, head]
+        return patched
+
+    def forward_qkv_patched(
+        self,
+        tokens: torch.Tensor,
+        padding_mask: torch.Tensor | None,
+        *,
+        patch_layer: int,
+        patch_positions: torch.Tensor,
+        patch_values: Mapping[str, torch.Tensor],
+        patch_head: int | None = None,
+    ) -> torch.Tensor:
+        """Run a causal intervention on pre-attention Q, K, and/or V activations.
+
+        ``patch_layer`` is one-based. Values are the donor projections at one
+        position per batch item, with shape ``[batch, heads, head_dimension]``.
+        Supplying a subset of ``query``, ``key``, and ``value`` changes only those
+        components. ``patch_head=None`` replaces every head; otherwise only the
+        selected head is changed.
+        """
+
+        if not 1 <= patch_layer <= self.config.n_layers:
+            raise ValueError(f"patch_layer must be between 1 and {self.config.n_layers}")
+        invalid = set(patch_values) - {"query", "key", "value"}
+        if invalid or not patch_values:
+            raise ValueError(f"Invalid Q/K/V patch components: {sorted(invalid)}")
+        if tokens.shape[1] > self.config.max_length:
+            raise ValueError(
+                f"Sequence length {tokens.shape[1]} exceeds max_length={self.config.max_length}"
+            )
+
+        positions = torch.arange(tokens.shape[1], device=tokens.device).unsqueeze(0)
+        hidden = self.token_embedding(tokens) + self.position_embedding(positions)
+        names = ("query", "key", "value")
+        for layer_number, layer in enumerate(self.encoder.layers, start=1):
+            if not layer.norm_first:
+                raise RuntimeError("Q/K/V patching currently requires a pre-norm encoder")
+            attention_input = layer.norm1(hidden)
+            if layer.self_attn.in_proj_weight is None:
+                raise RuntimeError("Separate Q/K/V projection weights are not supported")
+            projected = F.linear(
+                attention_input,
+                layer.self_attn.in_proj_weight,
+                layer.self_attn.in_proj_bias,
+            )
+            heads = layer.self_attn.num_heads
+            head_dimension = self.config.d_model // heads
+            components = [
+                item.reshape(item.shape[0], item.shape[1], heads, head_dimension)
+                for item in projected.chunk(3, dim=-1)
+            ]
+            if layer_number == patch_layer:
+                for index, name in enumerate(names):
+                    if name in patch_values:
+                        components[index] = self._replace_qkv_at_positions(
+                            components[index],
+                            patch_positions,
+                            patch_values[name],
+                            patch_head,
+                        )
+            attention_output = self._attention_from_qkv(layer, *components, padding_mask)
+            hidden = hidden + layer.dropout1(attention_output)
+            hidden = hidden + layer._ff_block(layer.norm2(hidden))
+
+        if self.encoder.norm is not None:
+            hidden = self.encoder.norm(hidden)
+        return self.classifier(hidden[:, 0])
 
     def forward_patched(
         self,

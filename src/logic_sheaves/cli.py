@@ -4,10 +4,15 @@ import argparse
 from pathlib import Path
 
 from .complex_experiment import default_complex_config, run_complex_experiment
+from .contextual_holonomy import run_contextual_holonomy
 from .depth_sweep import default_depth_sweep_config, run_depth_sweep
 from .experiment import pilot_config, run_experiment, smoke_config
+from .gauge_experiment import ATLAS_COMPONENTS, ATLAS_SCOPES, run_gauge_atlas
 from .holonomy_audit import run_holonomy_audit
+from .path_patching import run_path_patching
 from .qkv_holonomy import run_qkv_holonomy
+from .qkv_patching import run_qkv_patching
+from .typed_gauge_experiment import run_typed_gauge_experiment
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,11 +75,128 @@ def build_parser() -> argparse.ArgumentParser:
     )
     qkv_holonomy.add_argument("run_directory", type=Path)
     qkv_holonomy.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    qkv_patching = subparsers.add_parser(
+        "qkv-patching",
+        help="Causally patch pre-attention Q/K/V activations in a completed complex sweep.",
+    )
+    qkv_patching.add_argument("run_directory", type=Path)
+    qkv_patching.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    qkv_patching.add_argument("--count-per-operator", type=int, default=16)
+    contextual = subparsers.add_parser(
+        "contextual-holonomy",
+        help="Fit bidirectional context-conditioned subtree transports and Q/K geometry.",
+    )
+    contextual.add_argument("run_directory", type=Path)
+    contextual.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    contextual.add_argument("--calibration-pairs", type=int, default=96)
+    path_patching = subparsers.add_parser(
+        "path-patching",
+        help="Causally compare Q/K/V patches along equivalent rewrite paths.",
+    )
+    path_patching.add_argument("run_directory", type=Path)
+    path_patching.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    gauge_atlas = subparsers.add_parser(
+        "gauge-atlas",
+        help="Fit paper-style local charts, defect connections, and fundamental-cycle holonomy.",
+    )
+    gauge_atlas.add_argument("run_directory", type=Path)
+    gauge_atlas.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    gauge_atlas.add_argument("--chart-dimension", type=int, default=32)
+    gauge_atlas.add_argument("--ridge", type=float, default=1e-2)
+    gauge_atlas.add_argument("--persistence", type=float, default=0.0)
+    gauge_atlas.add_argument("--fit-fraction", type=float, default=0.5)
+    gauge_atlas.add_argument("--components", nargs="+", choices=ATLAS_COMPONENTS, default=None)
+    gauge_atlas.add_argument("--scopes", nargs="+", choices=ATLAS_SCOPES, default=None)
+    gauge_atlas.add_argument(
+        "--heads",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Restrict Q/K/V fibers to a causally nominated set of attention heads.",
+    )
+    gauge_atlas.add_argument(
+        "--bit-flips",
+        nargs="+",
+        choices=("x0", "x1", "x2", "x3"),
+        default=None,
+        help="Repeat on paired assignment interventions without changing diagram syntax.",
+    )
+    typed_gauge = subparsers.add_parser(
+        "typed-gauge",
+        help="Run type-correct Q/P/relative holonomy with persistence and circuit controls.",
+    )
+    typed_gauge.add_argument("run_directory", type=Path)
+    typed_gauge.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    typed_gauge.add_argument(
+        "--conditions",
+        nargs="+",
+        choices=("higher_diversity", "low_diversity"),
+        default=None,
+    )
+    typed_gauge.add_argument("--seeds", type=int, nargs="+", default=None)
+    typed_gauge.add_argument("--chart-dimensions", type=int, nargs="+", default=None)
+    typed_gauge.add_argument("--thresholds", type=float, nargs="+", default=None)
+    typed_gauge.add_argument("--ridge", type=float, default=1e-2)
+    typed_gauge.add_argument("--min-condition-ratio", type=float, default=0.02)
+    typed_gauge.add_argument("--max-bootstrap-stability", type=float, default=0.35)
+    typed_gauge.add_argument("--bootstrap-samples", type=int, default=16)
+    typed_gauge.add_argument("--bitflip-variable", choices=("x0", "x1", "x2", "x3"), default="x0")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.command == "typed-gauge":
+        typed_directory = run_typed_gauge_experiment(
+            args.run_directory,
+            device=args.device,
+            conditions=tuple(args.conditions or ("higher_diversity",)),
+            seeds=None if args.seeds is None else tuple(sorted(set(args.seeds))),
+            chart_dimensions=tuple(args.chart_dimensions or (8, 16)),
+            thresholds=tuple(args.thresholds or (0.0, 0.015, 0.03, 0.06, 0.12, 0.24)),
+            ridge=args.ridge,
+            min_condition_ratio=args.min_condition_ratio,
+            max_bootstrap_stability=args.max_bootstrap_stability,
+            bootstrap_samples=args.bootstrap_samples,
+            bitflip_variable=args.bitflip_variable,
+        )
+        print(f"Typed-gauge artifacts: {typed_directory.resolve()}")
+        return
+    if args.command == "gauge-atlas":
+        atlas_directory = run_gauge_atlas(
+            args.run_directory,
+            device=args.device,
+            chart_dimension=args.chart_dimension,
+            ridge=args.ridge,
+            persistence=args.persistence,
+            fit_fraction=args.fit_fraction,
+            components=tuple(args.components or ("query", "key", "value", "coupled_qk")),
+            scopes=tuple(args.scopes or ("cls", "expression_root")),
+            heads=None if args.heads is None else tuple(sorted(set(args.heads))),
+            bit_flips=tuple(args.bit_flips or ()),
+        )
+        print(f"Gauge-atlas artifacts: {atlas_directory.resolve()}")
+        return
+    if args.command == "path-patching":
+        path_directory = run_path_patching(args.run_directory, device=args.device)
+        print(f"Path-patching artifacts: {path_directory.resolve()}")
+        return
+    if args.command == "contextual-holonomy":
+        contextual_directory = run_contextual_holonomy(
+            args.run_directory,
+            device=args.device,
+            calibration_pairs=args.calibration_pairs,
+        )
+        print(f"Contextual-holonomy artifacts: {contextual_directory.resolve()}")
+        return
+    if args.command == "qkv-patching":
+        patch_directory = run_qkv_patching(
+            args.run_directory,
+            device=args.device,
+            count_per_operator=args.count_per_operator,
+        )
+        print(f"QKV-patching artifacts: {patch_directory.resolve()}")
+        return
     if args.command == "qkv-holonomy":
         qkv_directory = run_qkv_holonomy(args.run_directory, device=args.device)
         print(f"QKV-holonomy artifacts: {qkv_directory.resolve()}")

@@ -4,7 +4,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 runs/
+tmp/
 dist/
 build/
 *.egg-info/
-
